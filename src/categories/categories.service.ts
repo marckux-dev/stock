@@ -49,4 +49,13 @@ export class CategoriesService {
     this.categories = this.categories.filter((category) => category.id !== id);
     return category;
   }
+
+  clear() {
+    this.categories = [];
+  }
+
+  populate(categories: Category[]) {
+    this.categories = categories;
+  }
+
 }

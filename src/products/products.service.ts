@@ -59,4 +59,12 @@ export class ProductsService {
     this.products = this.products.filter((product) => product.id !== id);
     return product;
   }
+
+  clear() {
+    this.products = [];
+  }
+
+  populate(products: Product[]) {
+    this.products = products;
+  }
 }
