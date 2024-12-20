@@ -12,6 +12,8 @@ async function bootstrap() {
     transform: true, // transform payload to DTO
   }));
 
+  app.setGlobalPrefix('api');
+
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
