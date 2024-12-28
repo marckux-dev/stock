@@ -10,10 +10,13 @@ async function bootstrap() {
     whitelist: true, // remove properties that do not have decorators
     forbidNonWhitelisted: true, // throw error when properties that do not have decorators
     transform: true, // transform payload to DTO
+    transformOptions: {
+      enableImplicitConversion: true,
+    },
   }));
 
   app.setGlobalPrefix('api');
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT);
 }
 bootstrap();

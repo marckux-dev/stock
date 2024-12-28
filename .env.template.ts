@@ -1,0 +1,4 @@
+
+PORT=3000
+MONGODB=localhost:27017/stock
+DEFAULT_LIMIT=10

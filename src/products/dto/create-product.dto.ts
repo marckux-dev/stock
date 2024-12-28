@@ -1,4 +1,4 @@
-import { IsString, IsUUID, MinLength } from 'class-validator';
+import { IsMongoId, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class CreateProductDto {
 
@@ -6,8 +6,10 @@ export class CreateProductDto {
   @MinLength(3)
   readonly name: string;
 
-  @IsString()
-  @IsUUID()
+  @IsMongoId()
   readonly category: string;
+
+  @IsOptional()
+  readonly createdAt: Date = new Date();
 
 }

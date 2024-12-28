@@ -1,61 +1,109 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { Category } from './entities/category.entity';
-import { v4 as uuid } from 'uuid';
+import { isValidObjectId, Model } from 'mongoose';
+import { InjectModel } from '@nestjs/mongoose';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class CategoriesService {
 
-  private categories: Category[] = [];
+  private readonly defaultLimit: number;
 
-  create(createCategoryDto: CreateCategoryDto) {
-    const category: Category = {
-      id: uuid(),
-      ...createCategoryDto,
-      createdAt: new Date(),
-    };
-    this.categories.push(category);
-    return category;
+  constructor(
+    @InjectModel(Category.name)
+    private readonly categoryModel: Model<Category>,
+    private readonly configService: ConfigService,
+  ) {
+    this.defaultLimit = this.configService.get<number>('defaultLimit');
   }
 
-  findAll() {
-    return this.categories;
+
+  async create(createCategoryDto: CreateCategoryDto) {
+
+    try {
+      return await this.categoryModel.create(createCategoryDto);
+    } catch (error) {
+      if (error.code === 11000) {
+        throw new BadRequestException(`Category already exists in db: ${ JSON.stringify(error.keyValue) }`);
+      }
+      console.error(error);
+      throw new InternalServerErrorException(`Can't create category with error code: ${error.code}. Check server log.`);
+    }
+
   }
 
-  findOne(id: string) {
-    const category = this.categories.find((category) => category.id === id);
+  async findAll(paginationDto: PaginationDto) {
+    const { offset, limit = this.defaultLimit } = paginationDto;
+    return this.categoryModel.find().limit(limit).skip(offset);
+  }
+
+  async findOne(id: string) {
+
+    let category: Category;
+
+    try {
+      if (isValidObjectId(id)) {
+        category = await this.categoryModel.findById(id);
+      } else {
+        category = await this.categoryModel.findOne({ name: id });
+      }
+    } catch (error) {
+      console.error(error);
+      throw new InternalServerErrorException(`Can't find category with error code: ${error.code}.`);
+    }
+
     if (!category) {
+      throw new NotFoundException(`Category with id or name ${id} not found`);
+    }
+
+    return category;
+
+  }
+
+  async update(id: string, updateCategoryDto: UpdateCategoryDto) {
+
+    const category = await this.findOne(id);
+    try{
+      await category.updateOne(updateCategoryDto, {new: true});
+      return {...category.toJSON(), ...updateCategoryDto};
+    } catch (error) {
+      if (error.code === 11000) {
+        throw new BadRequestException(`Category ${updateCategoryDto.name} already exists in db`);
+      } else {
+        console.error(error);
+        throw new InternalServerErrorException(`Can't update category with error code: ${error.code}.`);
+      }
+    }
+  }
+
+  async remove(id: string) {
+    const result = await this.categoryModel.findByIdAndDelete(id);
+    if (!result)
       throw new NotFoundException(`Category with id ${id} not found`);
+    return result;
+  }
+
+  async removeAll() {
+    try{
+      await this.categoryModel.deleteMany({});
+      return {message: `All categories removed successfully.`};
+    } catch (error) {
+      console.log(error);
+      throw new InternalServerErrorException(`Can't delete category with error code: ${error.code}.`);
     }
-    return category;
   }
 
-  update(id: string, updateCategoryDto: UpdateCategoryDto) {
-    this.findOne(id);
-    const categoryIndex = this.categories.findIndex((category) => category.id === id);
-    const updatedCategory = {
-      ...this.categories[categoryIndex],
-      ...updateCategoryDto,
-      id,
-      updatedAt: new Date(),
+  async insertMany(list: CreateCategoryDto[]) {
+    try{
+      await this.categoryModel.insertMany(list);
+      return {message: `Categories inserted successfully.`};
+    } catch (error) {
+      console.log(error);
+      throw new InternalServerErrorException(`Can't insert many categories with error code: ${error.code}.`);
     }
-    this.categories[categoryIndex] = updatedCategory;
-    return updatedCategory;
-  }
-
-  remove(id: string) {
-    const category = this.findOne(id);
-    this.categories = this.categories.filter((category) => category.id !== id);
-    return category;
-  }
-
-  clear() {
-    this.categories = [];
-  }
-
-  populate(categories: Category[]) {
-    this.categories = categories;
   }
 
 }
